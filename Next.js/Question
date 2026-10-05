@@ -1,0 +1,221 @@
+Core Next.js questions for experienced developers
+1. What is Next.js?
+Next.js is a React framework for building web applications. It adds file-system routing, server rendering, static generation, Server Components, data fetching conventions, metadata, route handlers, image and font optimization, and deployment patterns around React.
+
+React gives you the component model. Next.js gives you the application structure.
+
+2. What is the App Router?
+The App Router is the modern routing system based on the app/ directory. It uses route segments, page.tsx, layout.tsx, Server Components, Client Components, loading UI, error boundaries, Route Handlers, metadata APIs, and caching controls.
+
+For new projects, answer App Router questions with app/ concepts first. Mention the Pages Router only when comparing older APIs such as getStaticProps or getServerSideProps.
+
+3. How does file-system routing work?
+In the App Router, folders define route segments. A segment becomes publicly routable when it has a page.tsx file.
+
+
+app/
+  page.tsx
+  products/
+    page.tsx
+    [id]/
+      page.tsx
+This creates /, /products, and /products/:id.
+
+4. What is the difference between page.tsx and layout.tsx?
+page.tsx renders the UI for a route. layout.tsx wraps a route segment and its children. Layouts are useful for shared navigation, sidebars, shells, and providers that should persist across navigation.
+
+Use a page for route-specific content. Use a layout for shared structure.
+
+5. What are dynamic routes?
+Dynamic routes capture variable URL segments with folder names such as [id], [slug], [...slug], or [[...slug]].
+
+
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  return <h1>Product {id}</h1>;
+}
+In current App Router examples, params may be treated asynchronously. Follow the project's Next.js version and conventions.
+
+For an interview, say the important part out loud: [id] is the dynamic segment, params.id is the value from the URL, and the page should still handle a missing or invalid product with notFound().
+
+6. What are Server Components?
+Server Components render on the server and do not ship their component code to the browser. They are useful for reading server-only data, calling databases, using secrets, rendering static content, and reducing client JavaScript.
+
+They cannot use browser-only APIs, event handlers, or client hooks such as useState.
+
+7. What are Client Components?
+Client Components run in the browser. Add "use client" at the top of the file to create a client boundary.
+
+Use Client Components for click handlers, local state, effects, browser APIs, focus behavior, and interactive widgets.
+
+8. When should you use "use client"?
+Use "use client" only for the component subtree that needs browser interactivity. A product page can be a Server Component while an AddToCartButton inside it is a Client Component.
+
+The common mistake is marking the entire route as client-rendered because one button needs onClick.
+
+9. Can Server Components render Client Components?
+Yes. A Server Component can import and render a Client Component, passing serializable props. This is the normal pattern for mixing server-rendered content with small interactive islands.
+
+A Client Component should not directly import a Server Component. Instead, pass server-rendered children from a server parent when needed.
+
+10. What is hydration?
+Hydration is the process where React attaches client-side behavior to server-rendered HTML. Hydration warnings happen when the initial client render does not match the HTML produced on the server.
+
+Common causes include rendering Date.now(), Math.random(), locale-dependent text, or localStorage-dependent values during the first render.
+
+Routing, metadata, and error handling
+11. How do you handle a 404 in the App Router?
+Use notFound() when route data does not exist, and define a not-found.tsx file when the route needs custom not-found UI.
+
+Do not silently render an empty page for a missing product. A missing resource is a route-level state.
+
+12. How do redirects work?
+Use redirect() when server-side route logic determines the user should go elsewhere, such as after an auth check or missing required setup.
+
+Client-side navigation is still useful for user-initiated interactions, but protected content should not flash before a redirect.
+
+13. How do you add metadata?
+Use static metadata for fixed route metadata and generateMetadata() when metadata depends on route params or fetched data.
+
+For a product detail page, use the product title, description, canonical URL, and open graph image from server-side data.
+
+14. What is loading.tsx?
+loading.tsx defines route-level loading UI. It works with Suspense boundaries so the user can see an immediate loading state while route content is prepared.
+
+Good answers mention the user experience: a slow product page needs a stable loading layout, not a blank screen.
+
+15. What is error.tsx?
+error.tsx defines an error boundary for a route segment. It must be a Client Component because error boundaries need client behavior.
+
+Use it for recoverable route errors. Do not treat it as a replacement for validating data and handling expected empty states.
+
+Rendering and caching questions
+16. Static generation versus request-time rendering: how do you choose?
+Use static generation when the route can be generated ahead of time and stale content is acceptable until the next build or revalidation. Use request-time rendering when the response depends on user-specific data, cookies, headers, permissions, or strict freshness.
+
+Most product pages are mixed: marketing copy can be cached, while inventory or price may need revalidation or dynamic fetching.
+
+In newer Next.js projects, you may also hear about Cache Components. The interview answer is still the same at the product level: decide which parts may be reused, which parts are request-specific, and where Suspense should show a loading state while uncached data resolves.
+
+17. What is generateStaticParams()?
+generateStaticParams() returns params for dynamic routes that should be generated at build time.
+
+Use it for known blog slugs, documentation pages, marketing pages, or product pages where the catalog is known and build-time generation is reasonable.
+
+18. How does caching work with fetch()?
+Next.js extends server-side fetch() with persistent caching and revalidation controls. Defaults have changed across recent versions and can also depend on project configuration, so avoid giving a memorized default as if it were universal. Interviewers usually care more about whether you make freshness explicit for important data.
+
+For example, product copy can be cached longer than stock status. A dashboard for the signed-in user should not share cached private data across users.
+
+Useful answer pattern:
+
+Public and slow-changing: opt into caching and revalidate on a schedule or event.
+User-specific: fetch per request or use private caching where the framework supports it.
+Security-sensitive: never share a cached response across users unless the cache key and privacy boundary are explicit.
+19. What is revalidation?
+Revalidation updates cached data after time passes or after an event. Time-based revalidation is useful for data that can be a little stale. On-demand revalidation is useful after a CMS publish, catalog update, or admin action.
+
+Name the freshness requirement before choosing a revalidation strategy.
+
+20. How do you avoid stale search results?
+Search routes often depend on query params, user input, ranking, and freshness. Avoid treating every possible search query as a prebuilt static page.
+
+Depending on SEO and interactivity needs, render results on the server, fetch them on the client, or combine a server-rendered shell with client-side refinements.
+
+Data, mutations, and APIs
+21. What are Route Handlers?
+Route Handlers let you define server endpoints inside the App Router, commonly with route.ts. Use them for API endpoints, webhooks, server-side data access, and integrations that should not expose secrets to the browser.
+
+22. Where should secrets live?
+Secrets should stay on the server: Server Components, Server Functions, Route Handlers, or other server-only code. Do not expose private API keys through Client Components or public environment variables.
+
+23. What are Server Functions?
+Server Functions run on the server and can be called from application code for mutations or server-side work. In interviews, explain why the server boundary matters: validation, authorization, secret access, and trusted writes belong on the server.
+
+24. How do you validate user input?
+Validate on the client for fast feedback and on the server for trust. Client validation improves UX. Server validation enforces the rule.
+
+A good form answer includes pending state, duplicate-submit prevention, error display, and accessible field messages.
+
+25. How do you handle authentication?
+Read auth state from trusted server-side signals such as cookies or headers. Redirect unauthenticated users before rendering protected UI when the server has enough information.
+
+For broad route gates, Next.js docs now use the term Proxy for pre-route logic. Some teams may still say Middleware because older versions and codebases used that term.
+
+Do not put all authorization logic only in Proxy. It is useful for early routing decisions, but data access and mutations still need server-side authorization at the point where protected data is read or changed.
+
+Performance and deployment questions
+26. How do you reduce client JavaScript?
+Keep non-interactive UI as Server Components, put "use client" at small boundaries, avoid importing large browser-only libraries into shared parents, and measure bundle output before optimizing blindly.
+
+27. How do images work in Next.js?
+Next.js provides an Image component and image optimization features. In interviews, explain the product reason: reserve layout space, serve appropriately sized images, avoid unnecessary downloads, and protect performance metrics such as LCP.
+
+28. How do fonts work?
+Next.js font optimization helps load fonts with less layout shift and clearer ownership. The key interview point is that font loading affects perceived performance, layout stability, and branding consistency.
+
+29. How do you debug a slow route?
+Split the problem:
+
+Is the server slow to fetch data?
+Is the page waiting on unnecessary blocking data?
+Is too much JavaScript sent to the browser?
+Is hydration expensive?
+Is an image hurting LCP?
+Is caching disabled by accident?
+Then measure with framework build output, browser DevTools, server logs, and Web Vitals.
+
+30. What changes between local development and production?
+Development mode optimizes feedback for engineers. Production builds optimize output for users. Caching, bundling, minification, image behavior, and deployment environment can differ.
+
+If a bug appears only in production, check environment variables, build-time assumptions, server/runtime differences, and caching.
+
+Senior Next.js questions
+31. How would you design a product detail route?
+Use a Server Component page for product data and SEO. Generate metadata from product data. Return notFound() for missing products. Keep interactive parts such as cart controls, variant selectors, and wishlist buttons in small Client Components. Make freshness explicit for price and inventory.
+
+32. How would you design an authenticated dashboard?
+Check auth before rendering protected UI. Fetch user-specific data on the server with request-aware credentials. Avoid sharing cached private responses. Split slow widgets with Suspense when possible. Keep URL state for filters that users expect to share or revisit.
+
+33. How would you migrate from Pages Router to App Router?
+Do not rewrite everything at once. Migrate route by route, learn the new data and rendering model, replace getStaticProps and getServerSideProps with App Router patterns, move shared shells into layouts, and identify Client Component boundaries.
+
+The biggest migration risk is carrying old mental models into Server Components and caching.
+
+Good migration answers also mention compatibility work: routes may coexist during migration, shared components may need "use client" boundaries, API routes may move to Route Handlers only when there is a reason, and tests should cover redirects, metadata, and not-found behavior before and after the move.
+
+34. How do you prevent hydration mismatches?
+Make the first client render match the server HTML. Avoid browser-only reads during render. Move browser-only logic into effects, use cookies when the server needs the value, or render a deliberate client boundary for values that cannot be known on the server.
+
+35. How do you choose between server and client fetching?
+Use server fetching when data improves SEO, uses secrets, depends on trusted auth, or should avoid extra client waterfalls. Use client fetching for highly interactive data, browser-only context, live updates, or user actions after initial render.
+
+The answer should include the UI states either way.
+
+36. How do you handle partial failures?
+Do not let one optional widget break an entire page. Use route error boundaries for route-level failures, local error UI for widget-level failures, and server-side validation for expected missing data.
+
+Name which failures are fatal and which can degrade.
+
+37. How do you keep a route maintainable?
+Separate route concerns: data loading, metadata, UI composition, interactive client widgets, mutation boundaries, and error states. Avoid making page.tsx a long file that owns every detail.
+
+38. How do you test a Next.js app?
+Test pure utilities with unit tests, components with user-focused component tests, and critical flows with E2E tests. For framework-specific behavior such as redirects, route handlers, and server boundaries, test at the route or integration level where possible.
+
+39. How do you review a Next.js PR?
+Check whether secrets stay on the server, client boundaries are small, route states are handled, metadata is correct, caching is explicit where freshness matters, and loading/error/not-found states match the product requirement.
+
+40. What is a good final interview answer pattern?
+Use this structure:
+
+Name the route or component boundary.
+State the rendering and freshness requirement.
+Choose the server/client split.
+Name the Next.js file or API.
+Call out one failure mode.
+That pattern turns framework knowledge into product judgment, which is what stronger Next.js interviews usually measure.
